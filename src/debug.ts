@@ -1,0 +1,109 @@
+import { interfaces as inversifyInterfaces } from "inversify";
+
+import { interfaces } from "./interfaces";
+import { PARAMETER_TYPE } from "./constants";
+import {
+    getControllersFromContainer,
+    getControllerMetadata,
+    getControllerMethodMetadata,
+    getControllerParameterMetadata
+} from "./utils";
+
+export function getRouteInfo(container: inversifyInterfaces.Container) {
+
+    const raw = getRawMetadata(container);
+
+    return raw.map(r => {
+
+        const controllerId = r.controllerMetadata.target.name;
+
+        const endpoints = r.methodMetadata.map(m => {
+
+            const method = m.method.toUpperCase();
+            const controllerPath = r.controllerMetadata.path;
+            const actionPath = m.path;
+            const paramMetadata = r.parameterMetadata;
+            let args: string[] | undefined = undefined;
+
+            if (paramMetadata !== undefined) {
+                const paramMetadataForKey = paramMetadata[m.key] || undefined;
+                if (paramMetadataForKey) {
+                    args = (r.parameterMetadata[m.key] || []).map(a => {
+                        let type = "";
+                        switch (a.type) {
+                            case PARAMETER_TYPE.RESPONSE:
+                                type = "@response";
+                                break;
+                            case PARAMETER_TYPE.REQUEST:
+                                type = "@request";
+                                break;
+                            case PARAMETER_TYPE.NEXT:
+                                type = "@next";
+                                break;
+                            case PARAMETER_TYPE.PARAMS:
+                                type = "@requestParam";
+                                break;
+                            case PARAMETER_TYPE.QUERY:
+                                type = "queryParam";
+                                break;
+                            case PARAMETER_TYPE.BODY:
+                                type = "@requestBody";
+                                break;
+                            case PARAMETER_TYPE.HEADERS:
+                                type = "@requestHeaders";
+                                break;
+                            case PARAMETER_TYPE.COOKIES:
+                                type = "@cookies";
+                                break;
+                            case PARAMETER_TYPE.PRINCIPAL:
+                                type = "@principal";
+                                break;
+                        }
+                        return `${type} ${a.parameterName}`;
+                    });
+                }
+            }
+
+            const details = {
+                route: `${method} ${controllerPath}${actionPath}`
+            };
+
+            if (args) {
+                details["args"] = args;
+            }
+
+            return details as { route: string, args?: string[] };
+
+        });
+
+        return {
+            controller: controllerId,
+            endpoints: endpoints
+        };
+
+    });
+
+}
+
+export function getRawMetadata(container: inversifyInterfaces.Container) {
+
+    const controllers = getControllersFromContainer(container, true);
+
+    return controllers.map((controller) => {
+
+        let constructor = controller.constructor;
+        let controllerMetadata: interfaces.ControllerMetadata = getControllerMetadata(constructor);
+        let methodMetadata: interfaces.ControllerMethodMetadata[] = getControllerMethodMetadata(constructor);
+        let parameterMetadata: interfaces.ControllerParameterMetadata = getControllerParameterMetadata(constructor);
+
+        return {
+            controllerMetadata,
+            methodMetadata,
+            parameterMetadata
+        };
+
+    });
+
+}
+
+
