@@ -13,18 +13,6 @@ Originally this package was forked from the official inversify-express-utils. Bu
 * Middlewares should be instanciated on every request. 
     * The middlewares were instanciated only once, even if they were not singletons, so the DI on the constructor could be broken if some dependency resolution depends on the scope of the request and the httpContext changes inside the handler method on the middleware during its execution if the handler executes async operation.
 
-
-## Installation
-
-You can install `inversify-express-utils` using npm:
-
-```sh
-npm install inversify inversify-express-utils reflect-metadata --save
-```
-
-The `inversify-express-utils` type definitions are included in the npm module and require TypeScript 2.0.
-Please refer to the [InversifyJS documentation](https://github.com/inversify/InversifyJS#installation) to learn more about the installation process.
-
 ## The Basics
 
 ### Step 1: Decorate your controllers
