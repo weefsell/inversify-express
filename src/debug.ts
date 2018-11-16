@@ -32,31 +32,31 @@ export function getRouteInfo(container: inversifyInterfaces.Container) {
                         let type = "";
                         switch (a.type) {
                             case PARAMETER_TYPE.RESPONSE:
-                                type = "@response";
+                                type = "@Response";
                                 break;
                             case PARAMETER_TYPE.REQUEST:
-                                type = "@request";
+                                type = "@Request";
                                 break;
                             case PARAMETER_TYPE.NEXT:
-                                type = "@next";
+                                type = "@Next";
                                 break;
                             case PARAMETER_TYPE.PARAMS:
-                                type = "@requestParam";
+                                type = "@RequestParam";
                                 break;
                             case PARAMETER_TYPE.QUERY:
-                                type = "queryParam";
+                                type = "QueryParam";
                                 break;
                             case PARAMETER_TYPE.BODY:
-                                type = "@requestBody";
+                                type = "@RequestBody";
                                 break;
                             case PARAMETER_TYPE.HEADERS:
-                                type = "@requestHeaders";
+                                type = "@RequestHeaders";
                                 break;
                             case PARAMETER_TYPE.COOKIES:
-                                type = "@cookies";
+                                type = "@Cookies";
                                 break;
                             case PARAMETER_TYPE.PRINCIPAL:
-                                type = "@principal";
+                                type = "@Principal";
                                 break;
                         }
                         return `${type} ${a.parameterName}`;

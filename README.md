@@ -4,14 +4,22 @@ Some utilities for the development of express applications with Inversify.
 
 ## Disclaimer
 
-Originally this package was forked from the official inversify-express-utils. But there were some bugs we found and we fixed ourselves, in the future we will create a pull request
+Originally this package was forked from the official inversify-express-utils. But there  we found some bugs and we fixed ourselves. We also made some changes to the base code to make it more cleaner documented and portable.
 
 
 #### Fixed Bugs
 
-- BaseMiddleware bindings unique to HTTP request. Pull request [#235](https://github.com/inversify/inversify-express-utils/pull/235)
-* Middlewares should be instanciated on every request. 
-    * The middlewares were instanciated only once, even if they were not singletons, so the DI on the constructor could be broken if some dependency resolution depends on the scope of the request and the httpContext changes inside the handler method on the middleware during its execution if the handler executes async operation.
+* BaseMiddleware bindings unique to HTTP request. Pull request [#235](https://github.com/inversify/inversify-express-utils/pull/235)
+* Middlewares should be instantiated on every request. 
+    * The middlewares were instantiated only once, even if they were not singletons, so the DI on the constructor could be broken if some dependency resolution depends on the scope of the request. Also, due to this behavior, the *httpContext* inside the handler method of the middleware, changes its value during execution if the handler executes an async operation (very confusing and prone to bugs).
+    
+#### Changes
+
+* Decorators names are now **Pascal Case**
+    * Despite of TypeScript documentation uses Camel Case, we prefer Pascal Case mainly because many of our developers have Java background and to standardize with Angular.
+* <strike>Filenames now follow the **kebab-case** naming convention.</strike> (not yet done)
+    * When working under Unix like systems, the case sensitive is not a problem. But if you start using Windows, filenames like <code>MyDecorator</code> and <code>myDecorator</code> simply does not work and causes confusion.
+    * Also this is the recommended naming convention by Angular and we wanted to standardize.
 
 ## The Basics
 
