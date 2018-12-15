@@ -56,7 +56,7 @@ export function getRouteInfo(container: inversifyInterfaces.Container) {
                                 type = "@Cookies";
                                 break;
                             case PARAMETER_TYPE.PRINCIPAL:
-                                type = "@Principal";
+                                type = "@PrincipalUser";
                                 break;
                         }
                         return `${type} ${a.parameterName}`;

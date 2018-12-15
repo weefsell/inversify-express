@@ -1,4 +1,4 @@
-export interface Principal {
+export interface PrincipalUser {
     details: any;
     isAuthenticated(): Promise<boolean>;
     // Allows content-based auth

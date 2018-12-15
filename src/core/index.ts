@@ -8,6 +8,6 @@ export * from "./http-response-message";
 export * from "./middleware.type";
 export * from "./middleware-context.type";
 export * from "./middleware-factory";
-export * from "./principal.interface";
+export * from "./principal-user.interface";
 export * from "./results";
 export * from "./routing-config.interface";

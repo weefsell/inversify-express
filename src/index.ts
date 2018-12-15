@@ -1,8 +1,7 @@
 import "reflect-metadata";
 
-import "./core";
-import "./decorators";
-
+export * from "./core";
+export * from  "./decorators";
 export * from "./constants";
 export * from "./debug";
 export * from "./server";
