@@ -16,7 +16,6 @@
         "outDir": "dist",
         "preserveConstEnums": true,
         "sourceMap": true,
-        "strictNullChecks": true,
         "suppressImplicitAnyIndexErrors": true,
         "target": "es2018",
         "typeRoots": [

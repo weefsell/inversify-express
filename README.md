@@ -2,55 +2,107 @@
 
 Some utilities for the development of express applications with Inversify.
 
-## Disclaimer
+This package is based on the official [inversify-express-utils](https://github.com/inversify/inversify-express-utils), but have some bugs fixed and some new features.
+Currently this package powers some big projects in our company, like ERP, BI and Site. 
 
-Originally this package was forked from the official inversify-express-utils. But there  we found some bugs and we fixed ourselves. We also made some changes to the base code to make it more cleaner documented and portable.
 
+#### Fixed Bugs from [inversify-express-utils](https://github.com/inversify/inversify-express-utils)
 
-#### Fixed Bugs
-
-* BaseMiddleware bindings unique to HTTP request. Pull request [#235](https://github.com/inversify/inversify-express-utils/pull/235)
+* BaseMiddleware bindings unique to HTTP request.
 * Middlewares should be instantiated on every request. 
-    * The middlewares were instantiated only once, even if they were not singletons, so the DI on the constructor could be broken if some dependency resolution depends on the scope of the request. Also, due to this behavior, the *httpContext* inside the handler method of the middleware, changes its value during execution if the handler executes an async operation (very confusing and prone to bugs).
+    * The middlewares were instantiated only once, even if they were not singletons, so the DI on the constructor could be broken if some dependency resolution depends on the scope of the request. 
+    * Also, due to the old behavior, the `httpContext` inside the handler method of the middleware, changes its value during execution if the handler executes an async operation (very confusing and prone to bugs).
+* Middlewares now can throw errors/exceptions safely. 
+    * The old behavior was that if a middleware throws an error/exception, NodeJS would "crash" with an `unhandled promise rejection`. Now the errors are catch correctly and passed to `next(err)` to be handled by the default error handler.
     
-#### Changes
+#### New features
 
+* Now we can pass a `context` in a per middleware configuration (global, per controller or per request), simulating a Middleware Factory (useful for role based authorization on per route, for example).
+    * The context is set under the "middlewareContext" attribute of the `BaseMiddleware` and is available only after construction during the call to `handler()` method. 
+    ```ts
+        //Example:
+        
+        @Controller("/foo")
+        class FooController extends BaseHttpController {
+        
+            //Look at the middleware factory
+            @Post("/bar", {identifier: "someSymbol", context: {key: "value"}})
+            public barPost() {
+                //...some code
+            }
+        }
+        
+        class FooMiddleware extends BaseMiddleware {
+        
+            constructor() {
+                super(); // Don't forget super call
+            }
+            
+            handler(req, res, next): void | Promise<void> {
+                
+                this.httpContex; // Available and safe
+                this.middlewareConxtext; // Available and is the same key/value passed on the @Post middlewares configuration
+                
+                // ...some diabolical mumbo-jumbo code executes here...
+            }
+        }
+        
+    ```
+* The `user` of the HttpContext is a generic and can be set to anything you want (include not using at all) instead of the funky `Principal` interface.
+* Added some documentation to classes, methods, code, etc.
+
+#### Breaking Changes
+* Controllers must extend `BaseHttpController<U>`.
+    * Controllers receive an optional generic type to identify the type of the user.
+* Middlewares must extend `BaseMiddleware`
+* `InversifyExpressServer` now can have a generic type `U` to represent the user type instead of the old `Principal` interface (wich still exists).
 * Decorators names are now **Pascal Case**
-    * Despite of TypeScript documentation uses Camel Case, we prefer Pascal Case mainly because many of our developers have Java background and to standardize with Angular.
-* <strike>Filenames now follow the **kebab-case** naming convention.</strike> (not yet done)
+    * Despite of TypeScript documentation uses Camel Case, we prefer Pascal Case mainly because many of our developers have Angular background.
+* `HttpContext` is now a class instead of a simple interface.
+* Filenames now follow the **kebab-case** naming convention.
     * When working under Unix like systems, the case sensitive is not a problem. But if you start using Windows, filenames like <code>MyDecorator</code> and <code>myDecorator</code> simply does not work and causes confusion.
     * Also this is the recommended naming convention by Angular and we wanted to standardize.
+    
+#### Changes to the source
+* `Files`, `folders` and `code` were refactored in a more "eye pleasant" way and some rules of thumbs were applied (e.g one export per file, no default export, barrel export). 
 
 ## The Basics
 
 ### Step 1: Decorate your controllers
 
-To use a class as a "controller" for your express app, simply add the `@controller` decorator to the class. Similarly, decorate methods of the class to serve as request handlers.
+To use a class as a "controller" for your express app, simply add the `@Controller` decorator to the class. Similarly, decorate methods of the class to serve as request handlers.
 
 The following example will declare a controller that responds to `GET /foo'.
 
 ```ts
 import * as express from "express";
-import { interfaces, controller, httpGet, httpPost, httpDelete, request, queryParam, response, requestParam } from "inversify-express-utils";
+import {
+    Controller, 
+    HttpGet, HttpPost, HttpDelete, 
+    Request, QueryParam, Response, RequestParam 
+} from "@weefsell/inversify-express/decorators";
+import {
+    BaseHttpController
+} from "@weefsell/inversify-express/core
 import { injectable, inject } from "inversify";
 
 @controller("/foo")
-export class FooController implements interfaces.Controller {
+export class FooController extends BaseHttpController {
 
-    constructor( @inject("FooService") private fooService: FooService ) {}
+    constructor(@inject("FooService") private fooService: FooService ) {}
 
-    @httpGet("/")
+    @HttpGet("/")
     private index(req: express.Request, res: express.Response, next: express.NextFunction): string {
         return this.fooService.get(req.query.id);
     }
 
-    @httpGet("/")
-    private list(@queryParam("start") start: number, @queryParam("count") count: number): string {
+    @HttpGet("/")
+    private list(@QueryParam("start") start: number, @QueryParam("count") count: number): string {
         return this.fooService.get(start, count);
     }
 
-    @httpPost("/")
-    private async create(@request() req: express.Request, @response() res: express.Response) {
+    @HttpPost("/")
+    private async create(@Request() req: express.Request, @Response() res: express.Response) {
         try {
             await this.fooService.create(req.body);
             res.sendStatus(201);
@@ -59,8 +111,8 @@ export class FooController implements interfaces.Controller {
         }
     }
 
-    @httpDelete("/:id")
-    private delete(@requestParam("id") id: string, @response() res: express.Response): Promise<void> {
+    @HttpDelete("/:id")
+    private delete(@RequestParam("id") id: string, @Response() res: express.Response): Promise<void> {
         return this.fooService.delete(id)
             .then(() => res.sendStatus(204))
             .catch((err: Error) => {
@@ -77,26 +129,26 @@ Configure the inversify container in your composition root as usual.
 Then, pass the container to the InversifyExpressServer constructor. This will allow it to register all controllers and their dependencies from your container and attach them to the express app.
 Then just call server.build() to prepare your app.
 
-In order for the InversifyExpressServer to find your controllers, you must bind them to the `TYPE.Controller` service identifier and tag the binding with the controller's name.
-The `Controller` interface exported by inversify-express-utils is empty and solely for convenience, so feel free to implement your own if you want.
 
 ```ts
-import * as bodyParser from 'body-parser';
+import * as bodyParser from "body-parser";
 
-import { Container } from 'inversify';
-import { interfaces, InversifyExpressServer, TYPE } from 'inversify-express-utils';
+import { Container } from "inversify";
+import { 
+    InversifyExpressServer
+} from "@weefsell/inversify-express";
 
-// declare metadata by @controller annotation
-import "./controllers/foo_controller";
+// declare metadata by @Controller annotation
+import "./controllers/foo.controller";
 
 // set up container
-let container = new Container();
+const container = new Container();
 
 // set up bindings
-container.bind<FooService>('FooService').to(FooService);
+container.bind<FooService>("FooService").to(FooService);
 
 // create server
-let server = new InversifyExpressServer(container);
+const server = new InversifyExpressServer(container);
 server.setConfig((app) => {
   // add body parser
   app.use(bodyParser.urlencoded({
@@ -105,25 +157,25 @@ server.setConfig((app) => {
   app.use(bodyParser.json());
 });
 
-let app = server.build();
-app.listen(3000);
+const app = server.build();
+http.createServer(app).listen(3000);
+//or if using https
+//https.createServer(options, app).listen(3000);
 ```
 
-## Important information about the @controller decorator
+## Important information about the @Controller decorator
 
-Since the `inversify-express-util@5.0.0` release. The `@injectable` annotation is no longer required in classes annotated with `@controller`. Declaring a type binding for controllers is also no longer required in classes annotated with `@controller`.
-
-:warning: Declaring a binding is not required for Controllers but **it is required to import the controller one unique time**. When the controller file is imported (e.g. `import "./controllers/some_controller"`) the class is declared and the metadata is generated. If you don't import it the metadata is never generated and therefore the controller is not found. An example of this can be found [here](https://github.com/inversify/inversify-express-example/blob/master/MongoDB/bootstrap.ts#L10-L11).
+:warning: Declaring a binding is not required for Controllers but **it is required to import the controller *one unique* time**. When the controller file is imported (e.g. `import "./controllers/some_controller"`) the class is declared and the metadata is generated. If you don't import it the metadata is never generated and therefore the controller is not found. An example of this can be found [here](https://github.com/inversify/inversify-express-example/blob/master/MongoDB/bootstrap.ts#L10-L11).
 
 If you run the application multiple times within a shared runtime process (e.g. unit testing) you might need to clean up the existing metadata before each test.
 
 ```ts
-import { cleanUpMetadata } from "inversify-express-utils";
+import { Util } from "@weefsell/inversify-express";
 
 describe("Some Component", () => {
 
     beforeEach(() => {
-        cleanUpMetadata();
+        Util.cleanUpMetadata();
     });
 
     it("Some test case", () => {
@@ -135,7 +187,7 @@ describe("Some Component", () => {
 
 You can find an example of this in [our unit tests](https://github.com/inversify/inversify-express-utils/blob/master/test/framework.test.ts#L25-L29).
 
-Inversify express utils will throw an exception if your application doesn't have controllers. You can disable this behaviour using the `forceControllers` option. You can find some examples of `forceControllers` in [our unit tests](https://github.com/inversify/inversify-express-utils/blob/master/test/issue_590.test.ts).
+Inversify express will throw an exception if your application doesn't have controllers. You can disable this behaviour using the `forceControllers` option.
 
 ## InversifyExpressServer
 
@@ -146,7 +198,7 @@ A wrapper for an express Application.
 Optional - exposes the express application object for convenient loading of server-level middleware.
 
 ```ts
-import * as morgan from 'morgan';
+import * as morgan from "morgan";
 // ...
 let server = new InversifyExpressServer(container);
 
@@ -225,51 +277,51 @@ let server = new InversifyExpressServer(container, null, null, app);
 
 ## Decorators
 
-### `@controller(path, [middleware, ...])`
+### `@Controller(path, [middleware, ...])`
 
 Registers the decorated class as a controller with a root path, and optionally registers any global middleware for this controller.
 
-### `@httpMethod(method, path, [middleware, ...])`
+### `@HttpMethod(method, path, [middleware, ...])`
 
 Registers the decorated controller method as a request handler for a particular path and method, where the method name is a valid express routing method.
 
 ### `@SHORTCUT(path, [middleware, ...])`
 
-Shortcut decorators which are simply wrappers for `@httpMethod`. Right now these include `@httpGet`, `@httpPost`, `@httpPut`, `@httpPatch`, `@httpHead`, `@httpDelete`, and `@All`. For anything more obscure, use `@httpMethod` (Or make a PR :smile:).
+Shortcut decorators which are simply wrappers for `@HttpMethod`. Right now these include `@HttpGet`, `@HttpPost`, `@HttpPut`, `@HttpPatch`, `@HttpHead`, `@HttpDelete`, and `@All`. For anything more obscure, use `@HttpMethod`.
 
-### `@request()`
+### `@Request()`
 
 Binds a method parameter to the request object.
 
-### `@response()`
+### `@Response()`
 
 Binds a method parameter to the response object.
 
-### `@requestParam(name: string)`
+### `@RequestParam(name: string)`
 
 Binds a method parameter to request.params object or to a specific parameter if a name is passed.
 
-### `@queryParam(name: string)`
+### `@QueryParam(name: string)`
 
 Binds a method parameter to request.query or to a specific query parameter if a name is passed.
 
-### `@requestBody()`
+### `@RequestBody()`
 
 Binds a method parameter to request.body or to a specific body property if a name is passed. If the bodyParser middleware is not used on the express app, this will bind the method parameter to the express request object.
 
-### `@requestHeaders(name: string)`
+### `@RequestHeaders(name: string)`
 
 Binds a method parameter to the request headers.
 
-### `@cookies(name: string)`
+### `@Cookies(name: string)`
 
 Binds a method parameter to the request cookies.
 
-### `@next()`
+### `@Next()`
 
 Binds a method parameter to the next() function.
 
-### `@principal()`
+### `@Principal()`
 
 Binds a method parameter to the user principal obtained from the AuthProvider.
 
@@ -281,13 +333,17 @@ The benefit of the latter two methods are that since your controller is no longe
 
 ```ts
 import { injectable, inject } from "inversify";
+import { 
+    BaseHttpController, HttpResponseMessage, StringContent
+} from "@weefsell/inversify-express/core";
 import {
-    controller, httpGet, BaseHttpController, HttpResponseMessage, StringContent
-} from "inversify-express-utils";
+    Controller, HttpGet
+} from "@weefsell/inversify-express/decorators";
 
-@controller("/")
+@Controller("/")
 class ExampleController extends BaseHttpController {
-    @httpGet("/")
+    
+    @HttpGet("/")
     public async get() {
         const response = new HttpResponseMessage(200);
         response.content = new StringContent("foo");
@@ -313,13 +369,15 @@ On the BaseHttpController, we provide a litany of helper methods to ease returni
 
 ```ts
 import { injectable, inject } from "inversify";
+import { BaseHttpController } from "@weefsell/inverify-express/core";
 import {
-    controller, httpGet, BaseHttpController
-} from "inversify-express-utils";
+    Controller, HttpGet
+} from "@weefsell/inverify-express/decorators";
 
-@controller("/")
+@Controller("/")
 class ExampleController extends BaseHttpController {
-    @httpGet("/")
+    
+    @HttpGet("/")
     public async get() {
         return this.ok("foo");
     }
@@ -331,13 +389,15 @@ In some scenarios, you'll want to set the status code of the response.
 This can be done by using the `json` helper method provided by `BaseHttpController`.
 
 ```ts
+import { BaseHttpController } from "@weefsell/inverify-express/core";
 import {
-    controller, httpGet, BaseHttpController
-} from "inversify-express-utils";
+    Controller, HttpGet
+} from "@weefsell/inverify-express/decorators";
 
-@controller("/")
+@Controller("/")
 export class ExampleController extends BaseHttpController {
-    @httpGet("/")
+    
+    @HttpGet("/")
     public async get() {
         const content = { foo: "bar" };
         const statusCode = 403;
@@ -353,9 +413,10 @@ This gives you the flexability to create your own responses while keeping unit t
 import { expect } from "chai";
 
 import { ExampleController } from "./example-controller";
-import { results } from "inversify-express-utils";
+import { JsonResult } from "@weefsell/inversify-express/core";
 
 describe("ExampleController", () => {
+    
     let controller: ExampleController;
 
     beforeEach(() => {
@@ -366,7 +427,7 @@ describe("ExampleController", () => {
         it("should have a status code of 403", async () => {
             const response = await controller.get();
 
-            expect(response).to.be.an.instanceof(results.JsonResult);
+            expect(response).to.be.an.instanceof(JsonResult);
             expect(response.statusCode).to.equal(403);
         });
     });
@@ -377,46 +438,22 @@ describe("ExampleController", () => {
 ## HttpContext
 
 The `HttpContext` property allow us to access the current request,
-response and user with ease. `HttpContext` is available as a property
-in controllers derived from `BaseHttpController`.
+response and user with ease. `HttpContext` is available as a property in controllers.
 
 ```ts
 import { injectable, inject } from "inversify";
+import { BaseHttpController } from "@weefsell/inverify-express/core";
 import {
-    controller, httpGet, BaseHttpController
-} from "inversify-express-utils";
+    Controller, HttpGet
+} from "@weefsell/inverify-express/decorators";
 
-@controller("/")
+
+@Controller("/")
 class UserPreferencesController extends BaseHttpController {
 
     @inject("AuthService") private readonly _authService: AuthService;
 
-    @httpGet("/")
-    public async get() {
-        const token = this.httpContext.request.headers["x-auth-token"];
-        return await this._authService.getUserPreferences(token);
-    }
-}
-```
-
-If you are creating a custom controller you will need to inject `HttpContext` manually
-using the `@injectHttpContext` decorator:
-
-```ts
-import { injectable, inject } from "inversify";
-import {
-    controller, httpGet, BaseHttpController, httpContext, interfaces
-} from "inversify-express-utils";
-
-const authService = inject("AuthService")
-
-@controller("/")
-class UserPreferencesController {
-
-    @injectHttpContext private readonly _httpContext: interfaces.HttpContext;
-    @authService private readonly _authService: AuthService;
-
-    @httpGet("/")
+    @HttpGet("/")
     public async get() {
         const token = this.httpContext.request.headers["x-auth-token"];
         return await this._authService.getUserPreferences(token);
@@ -441,26 +478,21 @@ The `AuthProvider` allow us to get an user (`Principal`):
 
 ```ts
 import { injectable, inject } from "inversify";
-import { interfaces } from "inversify-express-utils";
-
-const authService = inject("AuthService");
+import { AuthProvider } from "@weefsell/inversify-express/core";
 
 @injectable()
-class CustomAuthProvider implements interfaces.AuthProvider {
+class CustomAuthProvider implements AuthProvider {
 
-    @authService private readonly _authService: AuthService;
+    private readonly someAuthService: AuthService;
 
     public async getUser(
         req: express.Request,
         res: express.Response,
         next: express.NextFunction
     ): Promise<interfaces.Principal> {
-        const token = req.headers["x-auth-token"]
-        const user = await this._authService.getUser(token);
-        const principal = new Principal(user);
-        return principal;
+    
+        //... some diabolical mumbo-jumbo code executes here...
     }
-
 }
 ```
 
@@ -496,12 +528,12 @@ We can then access the current user (Principal) via the `HttpContext`:
 @controller("/")
 class UserDetailsController extends BaseHttpController {
 
-    @inject("AuthService") private readonly _authService: AuthService;
+    @inject("AuthService") private readonly authService: AuthService;
 
     @httpGet("/")
     public async getUserDetails() {
         if (this.httpContext.user.isAuthenticated()) {
-            return this._authService.getUserDetails(this.httpContext.user.details.id);
+            return this.authService.getUserDetails(this.httpContext.user.details.id);
         } else {
             throw new Error();
         }
@@ -511,25 +543,29 @@ class UserDetailsController extends BaseHttpController {
 
 ## BaseMiddleware
 
-Extending `BaseMiddleware` allow us to inject dependencies
+`BaseMiddleware` allow us to inject dependencies
 and to be access the current `HttpContext` in Express middleware function.
 
 ```ts
-import { BaseMiddleware } from "inversify-express-utils";
+import { BaseMiddleware } from "@weefsell/inversify-express/core";
 
 @injectable()
 class LoggerMiddleware extends BaseMiddleware {
-    @inject(TYPES.Logger) private readonly _logger: Logger;
+    
+    @inject(TYPES.Logger) private readonly logger: Logger;
+    
     public handler(
         req: express.Request,
         res: express.Response,
         next: express.NextFunction
     ) {
+    
         if (this.httpContext.user.isAuthenticated()) {
-            this._logger.info(`${this.httpContext.user.details.email} => ${req.url}`);
+            this.logger.info(`${this.httpContext.user.details.email} => ${req.url}`);
         } else {
-            this._logger.info(`Anonymous => ${req.url}`);
+            this.logger.info(`Anonymous => ${req.url}`);
         }
+        
         next();
     }
 }
@@ -552,15 +588,15 @@ We can then inject `TYPES.LoggerMiddleware` into one of our controllers.
 
 ```ts
 @injectable()
-@controller("/")
+@Controller("/")
 class UserDetailsController extends BaseHttpController {
 
-    @inject("AuthService") private readonly _authService: AuthService;
+    @inject("AuthService") private readonly authService: AuthService;
 
     @httpGet("/", TYPES.LoggerMiddleware)
     public async getUserDetails() {
         if (this.httpContext.user.isAuthenticated()) {
-            return this._authService.getUserDetails(this.httpContext.user.details.id);
+            return this.authService.getUserDetails(this.httpContext.user.details.id);
         } else {
             throw new Error();
         }
@@ -581,9 +617,10 @@ the direct access to them otherwise.
 Consider the below `TracingMiddleware`. In this example we want to capture the `X-Trace-Id` header from the incoming request
 and make it available to our IoC services as `TYPES.TraceIdValue`:
 
-```typescript
+```ts
 import { inject, injectable } from "inversify";
-import { BaseHttpController, BaseMiddleware, controller, httpGet } from "inversify-express-utils";
+import { BaseHttpController, BaseMiddleware,  } from "@weefsell/inversify-express/core";
+import { Controller, HttpGet } from "@weefsell/inversify-express/decorators";
 import * as express from "express";
 
 const TYPES = {
@@ -607,14 +644,14 @@ class TracingMiddleware extends BaseMiddleware {
     }
 }
 
-@controller("/")
+@Controller("/")
 class TracingTestController extends BaseHttpController {
 
     constructor(@inject(TYPES.Service) private readonly service: Service) {
         super();
     }
 
-    @httpGet(
+    @HttpGet(
         "/",
         TYPES.TracingMiddleware
     )
@@ -642,34 +679,34 @@ already been bound.
 If we have some controllers like for example:
 
 ```ts
-@controller("/api/user")
+@Controller("/api/user")
 class UserController extends BaseHttpController {
-    @httpGet("/")
+    @HttpGet("/")
     public get() {
         return {};
     }
-    @httpPost("/")
+    @HttpPost("/")
     public post() {
         return {};
     }
-    @httpDelete("/:id")
-    public delete(@requestParam("id") id: string) {
+    @HttpDelete("/:id")
+    public delete(@RequestParam("id") id: string) {
         return {};
     }
 }
 
-@controller("/api/order")
+@Controller("/api/order")
 class OrderController extends BaseHttpController {
-    @httpGet("/")
+    @HttpGet("/")
     public get() {
         return {};
     }
-    @httpPost("/")
+    @HttpPost("/")
     public post() {
         return {};
     }
-    @httpDelete("/:id")
-    public delete(@requestParam("id") id: string) {
+    @HttpDelete("/:id")
+    public delete(@RequestParam("id") id: string) {
         return {};
     }
 }
@@ -719,18 +756,22 @@ routes:
       -
         route: DELETE /api/user/:id
         args:
-          - @requestParam id
+          - @RequestParam id
 ```
 
 ## Examples
 
 Some examples can be found at the [inversify-express-example](https://github.com/inversify/inversify-express-example) repository.
 
+## Contributors
+
+* [Giancarlo Dalle Mole](https://github.com/giancarlo-dalle-mole)
+
 ## License
 
 License under the MIT License (MIT)
 
-Copyright © 2016-2017 [Cody Simms](https://github.com/codyjs)
+Copyright © 2018-2019 [WeefSell Sistemas - ME](https://github.com/weefsell)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 

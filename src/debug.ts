@@ -1,23 +1,23 @@
 import { interfaces as inversifyInterfaces } from "inversify";
 
-import { interfaces } from "./interfaces";
 import { PARAMETER_TYPE } from "./constants";
+import { Util } from "./util";
 import {
-    getControllersFromContainer,
-    getControllerMetadata,
-    getControllerMethodMetadata,
-    getControllerParameterMetadata
-} from "./utils";
+    ControllerMetadata,
+    ControllerMethodMetadata,
+    ControllerParameterMetadata
+} from "./decorators/metadata";
+import { BaseHttpController } from "./core";
 
 export function getRouteInfo(container: inversifyInterfaces.Container) {
 
     const raw = getRawMetadata(container);
 
-    return raw.map(r => {
+    return raw.map((r: any) => {
 
         const controllerId = r.controllerMetadata.target.name;
 
-        const endpoints = r.methodMetadata.map(m => {
+        const endpoints = r.methodMetadata.map((m: any) => {
 
             const method = m.method.toUpperCase();
             const controllerPath = r.controllerMetadata.path;
@@ -28,7 +28,7 @@ export function getRouteInfo(container: inversifyInterfaces.Container) {
             if (paramMetadata !== undefined) {
                 const paramMetadataForKey = paramMetadata[m.key] || undefined;
                 if (paramMetadataForKey) {
-                    args = (r.parameterMetadata[m.key] || []).map(a => {
+                    args = (r.parameterMetadata[m.key] || []).map((a: any) => {
                         let type = "";
                         switch (a.type) {
                             case PARAMETER_TYPE.RESPONSE:
@@ -87,14 +87,14 @@ export function getRouteInfo(container: inversifyInterfaces.Container) {
 
 export function getRawMetadata(container: inversifyInterfaces.Container) {
 
-    const controllers = getControllersFromContainer(container, true);
+    const controllers = Util.getControllersFromContainer(container, true);
 
-    return controllers.map((controller) => {
+    return controllers.map((controller: BaseHttpController<any>) => {
 
-        let constructor = controller.constructor;
-        let controllerMetadata: interfaces.ControllerMetadata = getControllerMetadata(constructor);
-        let methodMetadata: interfaces.ControllerMethodMetadata[] = getControllerMethodMetadata(constructor);
-        let parameterMetadata: interfaces.ControllerParameterMetadata = getControllerParameterMetadata(constructor);
+        let constructor = controller.constructor as inversifyInterfaces.Newable<BaseHttpController>;
+        let controllerMetadata: ControllerMetadata = Util.getControllerMetadata(constructor);
+        let methodMetadata: Array<ControllerMethodMetadata> = Util.getControllerMethodMetadata(constructor);
+        let parameterMetadata: ControllerParameterMetadata = Util.getControllerParameterMetadata(constructor);
 
         return {
             controllerMetadata,

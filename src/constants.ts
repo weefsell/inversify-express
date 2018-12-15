@@ -1,16 +1,15 @@
+/**
+ * Services Identifiers for types used in this library.
+ */
 export const TYPE = {
     AuthProvider: Symbol.for("AuthProvider"),
     Controller: Symbol.for("Controller"),
     HttpContext: Symbol.for("HttpContext")
 };
 
-export const METADATA_KEY = {
-    controller: "inversify-express-utils:controller",
-    controllerMethod: "inversify-express-utils:controller-method",
-    controllerParameter: "inversify-express-utils:controller-parameter",
-    httpContext: "inversify-express-utils:httpcontext"
-};
-
+/**
+ * Type parameters to request parameters types
+ */
 export enum PARAMETER_TYPE {
     REQUEST,
     RESPONSE,
