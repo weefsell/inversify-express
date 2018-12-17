@@ -9,14 +9,14 @@ import { MiddlewareContext } from "./middleware-context.type";
  * Express middleware function.
  */
 @Injectable()
-export abstract class BaseMiddleware {
+export abstract class BaseMiddleware<U = null> {
 
     //#region Protected Attributes
     /**
      * The context of the current HTTP call. Initialized when the middleware is invoked see
      * {@link Server.resolveMiddleware} in server.ts for more details
      */
-    protected readonly httpContext: HttpContext;
+    protected readonly httpContext: HttpContext<U>;
     /**
      * The custom middleware context is used to set custom data depending on the handler being
      * executed. Useful for passing custom data to the middleware to perform authorization on a
