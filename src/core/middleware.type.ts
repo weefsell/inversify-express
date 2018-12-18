@@ -6,4 +6,4 @@ import { MiddlewareFactory } from "./middleware-factory";
 /**
  * Middleware type definition
  */
-export type Middleware = (MiddlewareFactory | inversifyInterfaces.ServiceIdentifier<BaseMiddleware> | express.RequestHandler);
+export type Middleware = (MiddlewareFactory | inversifyInterfaces.ServiceIdentifier<BaseMiddleware<any>> | express.RequestHandler);

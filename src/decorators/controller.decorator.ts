@@ -12,7 +12,7 @@ import { ControllerMetadata, METADATA_KEY } from "./metadata";
  */
 export function Controller(path: string, ...middleware: Middleware[]) {
 
-    return function(target: inversifyInterfaces.Newable<BaseHttpController>) {
+    return function(target: inversifyInterfaces.Newable<BaseHttpController<any>>) {
 
         let currentMetadata: ControllerMetadata = {
             middleware: middleware,
