@@ -266,7 +266,7 @@ export class InversifyExpressServer<U = null> {
 
                 // A RequestHandler wrapper responsible for doing the instantiation logic of the
                 //  middleware and setting the correct HttpContext
-                return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+                return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
 
                     // HTTP context of the request
                     const httpContext: HttpContext<U> = this.getHttpContext(req);
@@ -276,8 +276,14 @@ export class InversifyExpressServer<U = null> {
                     // Set the request HTTP context
                     Reflect.set(middleware, "httpContext", httpContext);
 
-                    // Invoke the middleware handler
-                    middleware.handler(req, res, next);
+                    // Invoke the middleware handler and catch exceptions and pass to the default
+                    //  error handler
+                    try {
+                        await middleware.handler(req, res, next);
+                    }
+                    catch (e) {
+                        next(e);
+                    }
                 };
             }
         });
