@@ -1,6 +1,6 @@
 {
     "name": "@weefsell/inversify-express",
-    "version": "0.0.8",
+    "version": "0.0.9",
     "types": "dts/index.d.ts",
     "description": "This package was originally forked from the official inversify-express-utils, but contains some bugfixing and new features",
     "main": "dist/index.js",
