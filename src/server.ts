@@ -73,7 +73,7 @@ export class InversifyExpressServer<U = null> {
     }
     //#endregion
 
-    //#region Public Attributes
+    //#region Public Methods
     /**
      * Sets the configuration function to be applied to the application.
      * Note that the config function is not actually executed until a call to InversifyExpresServer.build().
@@ -114,6 +114,8 @@ export class InversifyExpressServer<U = null> {
 
             const httpContext = await this.createHttpContext(req, res);
             Reflect.defineMetadata(METADATA_KEY.httpContext, httpContext, req);
+            httpContext.container.bind<HttpContext<U>>(TYPE.HttpContext)
+                .toConstantValue(httpContext);
 
             next();
         });
@@ -325,8 +327,6 @@ export class InversifyExpressServer<U = null> {
                 let args = this.extractParameters(req, res, next, parameterMetadata);
 
                 const httpContext = this.getHttpContext(req);
-                httpContext.container.bind<HttpContext<U>>(TYPE.HttpContext)
-                    .toConstantValue(httpContext);
 
                 // invoke controller's action
                 const value: any = await httpContext.container.getNamed<any>(TYPE.Controller, controllerName)[key](...args);
